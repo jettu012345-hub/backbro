@@ -1,6 +1,6 @@
-// Server Entry Point - Updated for PostgreSQL/Drizzle
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors"; // ✅ ADD THIS
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import { storage } from "./storage";
@@ -8,6 +8,17 @@ import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
+
+// ✅ CORS CONFIG (IMPORTANT)
+app.use(cors({
+  origin: ["http://localhost:5001"], // your frontend
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+// ✅ HANDLE PREFLIGHT REQUESTS
+app.options("*", cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -51,11 +62,9 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Test DB Connection
     await pool.query('SELECT NOW()');
     log("Connected to PostgreSQL successfully");
 
-    // Initialize Public Viewer
     const publicViewer = await storage.getUserByMobileNumber("0000000000");
     if (!publicViewer) {
       await storage.createUser({
@@ -75,7 +84,6 @@ app.use((req, res, next) => {
       log("Initialized Public Viewer account");
     }
 
-    // Initialize Developer Account
     const developerAccount = await storage.getUserByMobileNumber("DEVILUPPER");
     if (!developerAccount) {
       await storage.createUser({
@@ -109,12 +117,10 @@ app.use((req, res, next) => {
 
   await registerRoutes(httpServer, app);
 
-  // Health check endpoint
   app.get("/health", (_req, res) => {
     res.json({ status: "OK", timestamp: new Date().toISOString() });
   });
 
-  // Base API v1 route
   app.get("/api/v1", (_req, res) => {
     res.json({ message: "Cricket Club Manager API v1" });
   });
